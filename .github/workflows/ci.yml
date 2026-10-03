@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests-backend:
+    name: Tests del backend
+    runs-on: ubuntu-latest
+
+    # Base de datos PostgreSQL temporal, solo para correr los tests
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: analizador
+          POSTGRES_USER: analizador
+          POSTGRES_PASSWORD: analizador
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U analizador"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DJANGO_SECRET_KEY: ci-secret
+      POSTGRES_DB: analizador
+      POSTGRES_USER: analizador
+      POSTGRES_PASSWORD: analizador
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Revisar configuración de Django
+        run: python manage.py check
+
+      - name: Revisar que no falten migraciones
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Correr tests con coverage (mínimo 60%)
+        run: pytest
+
+  build-docker:
+    name: Construir imágenes Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Imagen del backend
+        run: docker build -t analizador-backend ./backend
+
+      - name: Imagen del frontend
+        run: docker build -t analizador-frontend ./frontend

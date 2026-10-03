@@ -1,0 +1,12 @@
+[server]
+maxUploadSize = 20  # MB, igual que el límite del backend
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+primaryColor = "#1f4e79"
+
+[client]
+toolbarMode = "minimal"  # oculta el botón Deploy de Streamlit

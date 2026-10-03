@@ -1,0 +1,116 @@
+import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
+from rest_framework.test import APIClient
+
+from analizador import serializers
+from analizador.models import ArchivoAnalizado
+
+URL_ARCHIVOS = "/api/archivos/"
+URL_ESTADISTICAS = "/api/archivos/estadisticas/"
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 20
+PDF = b"%PDF-1.7\n" + b"contenido"
+
+
+@pytest.fixture
+def cliente():
+    return APIClient()
+
+
+def subir(cliente, nombre, contenido):
+    archivo = SimpleUploadedFile(nombre, contenido)
+    return cliente.post(URL_ARCHIVOS, {"archivo": archivo}, format="multipart")
+
+
+@pytest.mark.django_db
+class TestSubida:
+    def test_subir_archivo_detecta_y_guarda(self, cliente):
+        respuesta = subir(cliente, "foto.png", PNG)
+
+        assert respuesta.status_code == 201
+        assert respuesta.data["nombre"] == "foto.png"
+        assert respuesta.data["extension"] == "png"
+        assert respuesta.data["tipo_detectado"] == "PNG"
+        assert respuesta.data["mime"] == "image/png"
+        assert respuesta.data["tamano"] == len(PNG)
+        assert ArchivoAnalizado.objects.count() == 1
+
+    def test_detecta_por_contenido_aunque_la_extension_mienta(self, cliente):
+        respuesta = subir(cliente, "factura.jpg", PDF)
+
+        assert respuesta.status_code == 201
+        assert respuesta.data["extension"] == "jpg"
+        assert respuesta.data["tipo_detectado"] == "PDF"
+
+    def test_sin_archivo_responde_400(self, cliente):
+        respuesta = cliente.post(URL_ARCHIVOS, {}, format="multipart")
+
+        assert respuesta.status_code == 400
+        assert "archivo" in respuesta.data
+        assert ArchivoAnalizado.objects.count() == 0
+
+    def test_archivo_muy_grande_responde_400(self, cliente, monkeypatch):
+        monkeypatch.setattr(serializers, "TAMANO_MAXIMO", 10)
+
+        respuesta = subir(cliente, "grande.pdf", PDF)
+
+        assert respuesta.status_code == 400
+        assert ArchivoAnalizado.objects.count() == 0
+
+
+@pytest.mark.django_db
+class TestConsulta:
+    def test_listar_ordena_del_mas_nuevo_al_mas_viejo(self, cliente):
+        subir(cliente, "a.png", PNG)
+        subir(cliente, "b.pdf", PDF)
+
+        respuesta = cliente.get(URL_ARCHIVOS)
+
+        assert respuesta.status_code == 200
+        assert [a["nombre"] for a in respuesta.data] == ["b.pdf", "a.png"]
+
+    def test_detalle(self, cliente):
+        creado = subir(cliente, "a.png", PNG).data
+
+        respuesta = cliente.get(f"{URL_ARCHIVOS}{creado['id']}/")
+
+        assert respuesta.status_code == 200
+        assert respuesta.data == creado
+
+    def test_detalle_inexistente_responde_404(self, cliente):
+        assert cliente.get(f"{URL_ARCHIVOS}9999/").status_code == 404
+
+
+@pytest.mark.django_db
+class TestEstadisticas:
+    def test_sin_archivos(self, cliente):
+        respuesta = cliente.get(URL_ESTADISTICAS)
+
+        assert respuesta.status_code == 200
+        assert respuesta.data == {"total_archivos": 0, "tamano_total": 0, "por_tipo": []}
+
+    def test_cuenta_por_tipo(self, cliente):
+        subir(cliente, "a.png", PNG)
+        subir(cliente, "b.png", PNG)
+        subir(cliente, "c.pdf", PDF)
+
+        respuesta = cliente.get(URL_ESTADISTICAS)
+
+        assert respuesta.data["total_archivos"] == 3
+        assert respuesta.data["tamano_total"] == 2 * len(PNG) + len(PDF)
+        assert respuesta.data["por_tipo"] == [
+            {"tipo_detectado": "PNG", "cantidad": 2, "tamano_total": 2 * len(PNG)},
+            {"tipo_detectado": "PDF", "cantidad": 1, "tamano_total": len(PDF)},
+        ]
+
+
+@pytest.mark.django_db
+def test_str_del_modelo_es_el_nombre():
+    archivo = ArchivoAnalizado(nombre="foto.png", tipo_detectado="PNG", tamano=1)
+    assert str(archivo) == "foto.png"
+
+
+@pytest.mark.django_db
+def test_swagger_disponible(cliente):
+    assert cliente.get("/api/docs/").status_code == 200
+    assert cliente.get("/api/schema/").status_code == 200
