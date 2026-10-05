@@ -30,6 +30,25 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-insecure')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', '0') == '1'
 
+# Bits y firmas en desarrollo; en producción, solo el resultado por defecto.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'detector': {'format': '{asctime} {levelname} {name}: {message}', 'style': '{'},
+    },
+    'handlers': {
+        'detector_console': {'class': 'logging.StreamHandler', 'formatter': 'detector'},
+    },
+    'loggers': {
+        'analizador.detector': {
+            'handlers': ['detector_console'],
+            'level': os.environ.get('DJANGO_LOG_LEVEL', 'DEBUG' if DEBUG else 'INFO').upper(),
+            'propagate': True,
+        },
+    },
+}
+
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost').split(',')
 
 CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o]

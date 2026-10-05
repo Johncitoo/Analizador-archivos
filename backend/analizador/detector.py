@@ -1,11 +1,33 @@
 # vamos a intentar leer lso magic bytes
+import codecs
 import io
+import logging
 import zipfile
 from dataclasses import dataclass
 from pathlib import PurePath
 
 TIPO_DESCONOCIDO = "Desconocido"
 MIME_DESCONOCIDO = "application/octet-stream"
+logger = logging.getLogger(__name__)
+BYTES_MUESTRA_LOG = 16
+
+
+def _bits(datos: bytes) -> str:
+    return " ".join(f"{byte:08b}" for byte in datos)
+
+
+def _registrar_coincidencia(firma: "Firma", datos: bytes) -> None:
+    if not logger.isEnabledFor(logging.DEBUG):
+        return
+    for offset, esperado in firma.patrones:
+        encontrado = datos[offset:offset + len(esperado)]
+        logger.debug(
+            "Firma coincidente: tipo=%s offset=%d longitud=%d "
+            "esperado_hex=[%s] encontrado_hex=[%s] "
+            "esperado_bits=[%s] encontrado_bits=[%s]",
+            firma.tipo, offset, len(esperado), esperado.hex(" "),
+            encontrado.hex(" "), _bits(esperado), _bits(encontrado),
+        )
 
 
 @dataclass(frozen=True)
@@ -79,19 +101,55 @@ _OFFICE_POR_CARPETA = (
 BYTES_CABECERA = max(off + len(esp) for f in FIRMAS for off, esp in f.patrones)
 
 
+def obtener_diagnostico(datos: bytes, resultado: Resultado) -> dict:
+    """Detalle breve para la consola del navegador, sin almacenar el contenido."""
+    muestra = datos[:BYTES_MUESTRA_LOG]
+    firma = next((firma for firma in FIRMAS if firma.coincide(datos)), None)
+    coincidencias = []
+    if firma is not None:
+        for offset, esperado in firma.patrones:
+            encontrado = datos[offset:offset + len(esperado)]
+            coincidencias.append({
+                "firma": firma.tipo, "offset": offset, "longitud": len(esperado),
+                "esperado_hex": esperado.hex(" "), "encontrado_hex": encontrado.hex(" "),
+                "esperado_bits": _bits(esperado), "encontrado_bits": _bits(encontrado),
+            })
+    return {
+        "tamano": len(datos), "muestra_bytes": len(muestra),
+        "muestra_hex": muestra.hex(" "), "muestra_bits": _bits(muestra),
+        "tipo_detectado": resultado.tipo, "mime": resultado.mime,
+        "coincidencias": coincidencias,
+    }
+
+
 def detectar_tipo(datos: bytes) -> Resultado:
+    """Devuelve el tipo de archivo según su contenido."""
+    if logger.isEnabledFor(logging.DEBUG):
+        muestra = datos[:BYTES_MUESTRA_LOG]
+        logger.debug(
+            "Inicio de deteccion: tamano=%d muestra_bytes=%d "
+            "muestra_hex=[%s] muestra_bits=[%s]",
+            len(datos), len(muestra), muestra.hex(" "), _bits(muestra),
+        )
     if not datos:
+        logger.info("Resultado de deteccion: tipo=Vacío (sin contenido)")
         return Resultado("Vacío", "application/x-empty")
 
     for firma in FIRMAS:
         if firma.coincide(datos):
+            _registrar_coincidencia(firma, datos)
             if firma.tipo == "ZIP":
-                return _refinar_zip(datos)
-            return Resultado(firma.tipo, firma.mime)
+                resultado = _refinar_zip(datos)
+            else:
+                resultado = Resultado(firma.tipo, firma.mime)
+            logger.info("Resultado de deteccion: tipo=%s mime=%s", resultado.tipo, resultado.mime)
+            return resultado
 
     if _es_texto(datos):
+        logger.info("Sin firma coincidente: tipo=Texto (muestra UTF-8 válida)")
         return Resultado("Texto", "text/plain")
 
+    logger.info("Sin firma coincidente: tipo=%s", TIPO_DESCONOCIDO)
     return Resultado(TIPO_DESCONOCIDO, MIME_DESCONOCIDO)
 
 
@@ -109,13 +167,21 @@ def _refinar_zip(datos: bytes) -> Resultado:
 
 
 def _es_texto(datos: bytes, muestra: int = 8192) -> bool:
+    """Comprueba una muestra UTF-8, completando el carácter cortado si lo hay."""
     fragmento = datos[:muestra]
     if b"\x00" in fragmento:
         return False
+    decoder = codecs.getincrementaldecoder("utf-8")()
     try:
-        fragmento.decode("utf-8")
-    except UnicodeDecodeError as error:
-        return error.start >= len(fragmento) - 3
+        decoder.decode(fragmento, final=len(datos) <= muestra)
+        # Un carácter UTF-8 puede necesitar hasta tres bytes adicionales.
+        for offset in range(muestra, min(len(datos), muestra + 3)):
+            if not decoder.getstate()[0]:
+                break
+            decoder.decode(datos[offset:offset + 1])
+        decoder.decode(b"", final=True)
+    except UnicodeDecodeError:
+        return False
     return True
 
 

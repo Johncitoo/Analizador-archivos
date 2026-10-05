@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db.models import Count, Sum
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
@@ -5,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
-from .detector import detectar_tipo, obtener_extension
+from .detector import detectar_tipo, obtener_diagnostico, obtener_extension
 from .models import ArchivoAnalizado
 from .serializers import ArchivoAnalizadoSerializer, SubidaArchivoSerializer
 
@@ -39,7 +40,10 @@ class ArchivoAnalizadoViewSet(
             mime=resultado.mime,
             tamano=archivo.size,
         )
-        return Response(ArchivoAnalizadoSerializer(registro).data, status=status.HTTP_201_CREATED)
+        respuesta = dict(ArchivoAnalizadoSerializer(registro).data)
+        if settings.DEBUG and request.query_params.get("diagnostico") == "1":
+            respuesta["diagnostico"] = obtener_diagnostico(datos, resultado)
+        return Response(respuesta, status=status.HTTP_201_CREATED)
 
     @extend_schema(summary="Estadísticas de archivos analizados")
     @action(detail=False)

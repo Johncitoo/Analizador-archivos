@@ -4,6 +4,9 @@ import pandas as pd
 import streamlit as st
 
 import api
+from diagnostico import registrar_en_navegador
+
+TAMANO_MAXIMO = 20 * 1024 * 1024
 
 
 def formatear_tamano(num_bytes: int) -> str:
@@ -33,12 +36,16 @@ with tab_analizar:
     if st.button("Analizar", type="primary", disabled=not archivos):
         resultados = []
         for archivo in archivos:
+            if archivo.size > TAMANO_MAXIMO:
+                st.error(f"{archivo.name}: El archivo supera el máximo de 20 MB.")
+                continue
             try:
                 resultados.append(api.subir_archivo(archivo.name, archivo.getvalue()))
             except api.ErrorAPI as error:
                 st.error(f"{archivo.name}: {error}")
 
         if resultados:
+            registrar_en_navegador(resultados)
             st.success(f"Se analizaron {len(resultados)} archivo(s).")
             tabla = pd.DataFrame(resultados)
             st.dataframe(

@@ -78,6 +78,23 @@ jobs:
 
       - name: Compilar React
         run: npm run build
+  tests-frontend:
+    name: Tests del frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend-react
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend-react/package-lock.json
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Probar validaciones y diagnóstico de React
+        run: npm test
 
   build-docker:
     name: Construir imágenes Docker

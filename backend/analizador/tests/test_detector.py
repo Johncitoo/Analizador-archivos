@@ -1,4 +1,5 @@
 import io
+import logging
 import zipfile
 
 import pytest
@@ -86,6 +87,26 @@ def test_texto_con_caracter_cortado_al_final_de_la_muestra():
     assert detectar_tipo(datos).tipo == "Texto"
 
 
+@pytest.mark.parametrize(
+    "datos",
+    [
+        b"\xff", b"hola\xff", b"hola\xc3",
+        b"a" * 8191 + b"\xff" + b"a",
+        b"a" * 8191 + b"\xc3(",
+        b"a" * 8191 + b"\xe2\x82",
+        b"a" * 8191 + b"\xf0\x9f\x98",
+    ],
+)
+def test_utf8_invalido_o_incompleto_no_es_texto(datos):
+    assert detectar_tipo(datos).tipo == TIPO_DESCONOCIDO
+
+
+@pytest.mark.parametrize("caracter", ["ñ", "€", "😀"])
+def test_completa_caracter_utf8_en_limite_de_muestra(caracter):
+    datos = b"a" * 8191 + caracter.encode("utf-8")
+    assert detectar_tipo(datos).tipo == "Texto"
+
+
 def test_binario_desconocido():
     resultado = detectar_tipo(b"\x00\x01\x02\x03\xfe\xff")
     assert resultado.tipo == TIPO_DESCONOCIDO
@@ -106,3 +127,54 @@ def test_bytes_cabecera_alcanza_para_todas_las_firmas():
 )
 def test_obtener_extension(nombre, extension):
     assert obtener_extension(nombre) == extension
+
+
+def test_log_pdf_muestra_bits_compartidos_sin_volcar_archivo(caplog):
+    with caplog.at_level(logging.DEBUG, logger="analizador.detector"):
+        detectar_tipo(b"%PDF-1.7\n" + b"x" * 100 + b"CONTENIDO_PRIVADO")
+    mensaje = caplog.text
+    assert "muestra_bytes=16" in mensaje
+    assert "tipo=PDF offset=0 longitud=4" in mensaje
+    assert "esperado_hex=[25 50 44 46] encontrado_hex=[25 50 44 46]" in mensaje
+    bits = "00100101 01010000 01000100 01000110"
+    assert f"esperado_bits=[{bits}] encontrado_bits=[{bits}]" in mensaje
+    assert "CONTENIDO_PRIVADO" not in mensaje
+
+
+@pytest.mark.parametrize(
+    ("datos", "tipo", "offsets"),
+    [
+        (b"RIFF\x00\x00\x00\x00WAVEfmt ", "WAV", [0, 8]),
+        (b"\x00" * 257 + b"ustar", "TAR", [257]),
+    ],
+)
+def test_log_firmas_en_distintas_posiciones(caplog, datos, tipo, offsets):
+    with caplog.at_level(logging.DEBUG, logger="analizador.detector"):
+        detectar_tipo(datos)
+    coincidencias = [r.getMessage() for r in caplog.records if "Firma coincidente:" in r.getMessage()]
+    assert len(coincidencias) == len(offsets)
+    for mensaje, offset in zip(coincidencias, offsets):
+        assert f"tipo={tipo} offset={offset} " in mensaje
+
+
+@pytest.mark.parametrize(("datos", "tipo"), [(b"hola", "Texto"), (b"\x00\xff", "Desconocido")])
+def test_log_sin_firma_no_inventa_coincidencias(caplog, datos, tipo):
+    with caplog.at_level(logging.DEBUG, logger="analizador.detector"):
+        detectar_tipo(datos)
+    assert f"Sin firma coincidente: tipo={tipo}" in caplog.text
+    assert "Firma coincidente:" not in caplog.text
+
+
+def test_log_info_no_expone_bytes(caplog):
+    with caplog.at_level(logging.INFO, logger="analizador.detector"):
+        detectar_tipo(b"%PDF-1.7\n")
+    assert "Resultado de deteccion: tipo=PDF" in caplog.text
+    assert "bits=" not in caplog.text
+    assert "hex=" not in caplog.text
+
+
+def test_log_zip_distingue_firma_de_tipo_office(caplog):
+    with caplog.at_level(logging.DEBUG, logger="analizador.detector"):
+        detectar_tipo(crear_zip("word/document.xml"))
+    assert "Firma coincidente: tipo=ZIP" in caplog.text
+    assert "Resultado de deteccion: tipo=DOCX" in caplog.text

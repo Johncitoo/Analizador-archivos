@@ -36,7 +36,10 @@ def _llamar(metodo: str, ruta: str, **kwargs):
 
 
 def subir_archivo(nombre: str, contenido: bytes) -> dict:
-    return _llamar("POST", "/archivos/", files={"archivo": (nombre, contenido)})
+    return _llamar(
+        "POST", "/archivos/", files={"archivo": (nombre, contenido)},
+        params={"diagnostico": "1"},
+    )
 
 
 def listar_archivos() -> list[dict]:

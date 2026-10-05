@@ -1,3 +1,5 @@
+import { registrarDiagnostico } from "./diagnostico.js";
+
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000/api").replace(/\/$/, "");
 
 async function pedir(ruta, opciones) {
@@ -21,10 +23,12 @@ function mensajeDeError(datos) {
   return Object.values(datos).flat().join(" ");
 }
 
-export function subirArchivo(archivo) {
+export async function subirArchivo(archivo) {
   const formulario = new FormData();
   formulario.append("archivo", archivo);
-  return pedir("/archivos/", { method: "POST", body: formulario });
+  const resultado = await pedir("/archivos/?diagnostico=1", { method: "POST", body: formulario });
+  registrarDiagnostico(resultado);
+  return resultado;
 }
 
 export function listarArchivos() {

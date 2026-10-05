@@ -58,6 +58,72 @@ class TestSubida:
         assert ArchivoAnalizado.objects.count() == 0
 
 
+    def test_extension_demasiado_larga_responde_400(self, cliente):
+        respuesta = subir(cliente, "archivo." + "x" * 21, PDF)
+
+        assert respuesta.status_code == 400
+        assert "archivo" in respuesta.data
+        assert "20 caracteres" in str(respuesta.data["archivo"])
+        assert ArchivoAnalizado.objects.count() == 0
+
+    def test_extension_en_limite_se_guarda(self, cliente):
+        respuesta = subir(cliente, "archivo." + "x" * 20, PDF)
+
+        assert respuesta.status_code == 201
+        assert respuesta.data["extension"] == "x" * 20
+        assert ArchivoAnalizado.objects.count() == 1
+
+    def test_diagnostico_png_solo_en_subida_solicitada(self, cliente, settings):
+        settings.DEBUG = True
+        archivo = SimpleUploadedFile("foto.jpg", PNG)
+        respuesta = cliente.post(URL_ARCHIVOS + "?diagnostico=1", {"archivo": archivo}, format="multipart")
+        assert respuesta.status_code == 201
+        diagnostico = respuesta.data["diagnostico"]
+        assert diagnostico["tipo_detectado"] == "PNG"
+        assert diagnostico["muestra_bytes"] == 16
+        patron = diagnostico["coincidencias"][0]
+        assert patron["offset"] == 0
+        assert patron["esperado_hex"] == patron["encontrado_hex"] == "89 50 4e 47 0d 0a 1a 0a"
+        assert patron["esperado_bits"] == patron["encontrado_bits"]
+        detalle = cliente.get(f"{URL_ARCHIVOS}{respuesta.data['id']}/")
+        assert "diagnostico" not in detalle.data
+
+    def test_diagnostico_no_se_expone_en_produccion(self, cliente, settings):
+        settings.DEBUG = False
+        archivo = SimpleUploadedFile("foto.png", PNG)
+        respuesta = cliente.post(URL_ARCHIVOS + "?diagnostico=1", {"archivo": archivo}, format="multipart")
+        assert respuesta.status_code == 201
+        assert "diagnostico" not in respuesta.data
+
+    def test_diagnostico_no_solicitado_se_omite_en_desarrollo(self, cliente, settings):
+        settings.DEBUG = True
+        respuesta = subir(cliente, "foto.png", PNG)
+        assert respuesta.status_code == 201
+        assert "diagnostico" not in respuesta.data
+
+    @pytest.mark.parametrize(
+        ("datos", "tipo", "offsets"),
+        [
+            (b"RIFF\x00\x00\x00\x00WAVEfmt ", "WAV", [0, 8]),
+            (b"\x00" * 257 + b"ustar", "TAR", [257]),
+            (b"hola", "Texto", []),
+            (b"hola\xff", "Desconocido", []),
+        ],
+    )
+    def test_diagnostico_respeta_firmas_y_posiciones(self, cliente, settings, datos, tipo, offsets):
+        settings.DEBUG = True
+        archivo = SimpleUploadedFile("prueba.bin", datos)
+        respuesta = cliente.post(URL_ARCHIVOS + "?diagnostico=1", {"archivo": archivo}, format="multipart")
+        assert respuesta.status_code == 201
+        diagnostico = respuesta.data["diagnostico"]
+        assert diagnostico["tipo_detectado"] == tipo
+        assert diagnostico["muestra_bytes"] <= 16
+        assert [p["offset"] for p in diagnostico["coincidencias"]] == offsets
+        for patron in diagnostico["coincidencias"]:
+            assert patron["esperado_bits"] == patron["encontrado_bits"]
+            assert patron["esperado_hex"] == patron["encontrado_hex"]
+
+
 @pytest.mark.django_db
 class TestConsulta:
     def test_listar_ordena_del_mas_nuevo_al_mas_viejo(self, cliente):
