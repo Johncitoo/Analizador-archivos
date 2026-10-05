@@ -76,13 +76,15 @@ La documentación interactiva se genera automáticamente con drf-spectacular en 
 
 ## Ejecutar en local
 
-Requisitos: Docker Desktop.
+Requisitos: Docker Desktop. No hace falta instalar Python, Node ni PostgreSQL.
 
 ```bash
-cp .env.example .env
-docker compose up -d --build
-docker compose exec backend python manage.py migrate
+git clone https://github.com/Johncitoo/Analizador-archivos.git
+cd Analizador-archivos
+docker compose up --build
 ```
+
+Las migraciones de la base de datos se aplican automáticamente al arrancar el backend. La configuración tiene valores por defecto para desarrollo; para cambiarlos, copiar `.env.example` a `.env` y editarlo.
 
 | Servicio | URL |
 |---|---|
