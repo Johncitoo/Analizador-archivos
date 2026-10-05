@@ -18,9 +18,7 @@ export default function App() {
     <main>
       <header>
         <h1>Analizador de Archivos</h1>
-        <p className="subtitulo">
-          Detecta el tipo real de un archivo leyendo sus primeros bytes (magic bytes), sin importar su extensión.
-        </p>
+        <p className="subtitulo">Detector de archivos con magic bytes</p>
       </header>
 
       <nav>
