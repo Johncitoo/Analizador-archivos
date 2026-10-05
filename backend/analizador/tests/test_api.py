@@ -75,6 +75,7 @@ class TestSubida:
 
     def test_diagnostico_png_solo_en_subida_solicitada(self, cliente, settings):
         settings.DEBUG = True
+        settings.DJANGO_DIAGNOSTICO_ENABLED = True
         archivo = SimpleUploadedFile("foto.jpg", PNG)
         respuesta = cliente.post(URL_ARCHIVOS + "?diagnostico=1", {"archivo": archivo}, format="multipart")
         assert respuesta.status_code == 201
@@ -88,18 +89,36 @@ class TestSubida:
         detalle = cliente.get(f"{URL_ARCHIVOS}{respuesta.data['id']}/")
         assert "diagnostico" not in detalle.data
 
-    def test_diagnostico_no_se_expone_en_produccion(self, cliente, settings):
-        settings.DEBUG = False
+    @pytest.mark.parametrize("debug", [False, True])
+    def test_diagnostico_desactivado_se_omite(self, cliente, settings, debug):
+        settings.DEBUG = debug
+        settings.DJANGO_DIAGNOSTICO_ENABLED = False
         archivo = SimpleUploadedFile("foto.png", PNG)
         respuesta = cliente.post(URL_ARCHIVOS + "?diagnostico=1", {"archivo": archivo}, format="multipart")
         assert respuesta.status_code == 201
         assert "diagnostico" not in respuesta.data
 
-    def test_diagnostico_no_solicitado_se_omite_en_desarrollo(self, cliente, settings):
-        settings.DEBUG = True
+    @pytest.mark.parametrize("debug", [False, True])
+    def test_diagnostico_no_solicitado_se_omite(self, cliente, settings, debug):
+        settings.DEBUG = debug
+        settings.DJANGO_DIAGNOSTICO_ENABLED = True
         respuesta = subir(cliente, "foto.png", PNG)
         assert respuesta.status_code == 201
         assert "diagnostico" not in respuesta.data
+
+    def test_diagnostico_habilitado_en_produccion(self, cliente, settings):
+        settings.DEBUG = False
+        settings.DJANGO_DIAGNOSTICO_ENABLED = True
+        archivo = SimpleUploadedFile("foto.jpg", PNG)
+        respuesta = cliente.post(URL_ARCHIVOS + "?diagnostico=1", {"archivo": archivo}, format="multipart")
+        assert respuesta.status_code == 201
+        diagnostico = respuesta.data["diagnostico"]
+        assert diagnostico["tipo_detectado"] == "PNG"
+        assert diagnostico["muestra_bytes"] == 16
+        patron = diagnostico["coincidencias"][0]
+        assert patron["esperado_bits"] == patron["encontrado_bits"]
+        assert "diagnostico" not in cliente.get(f"{URL_ARCHIVOS}{respuesta.data['id']}/").data
+        assert all("diagnostico" not in registro for registro in cliente.get(URL_ARCHIVOS).data)
 
     @pytest.mark.parametrize(
         ("datos", "tipo", "offsets"),
@@ -112,6 +131,7 @@ class TestSubida:
     )
     def test_diagnostico_respeta_firmas_y_posiciones(self, cliente, settings, datos, tipo, offsets):
         settings.DEBUG = True
+        settings.DJANGO_DIAGNOSTICO_ENABLED = True
         archivo = SimpleUploadedFile("prueba.bin", datos)
         respuesta = cliente.post(URL_ARCHIVOS + "?diagnostico=1", {"archivo": archivo}, format="multipart")
         assert respuesta.status_code == 201

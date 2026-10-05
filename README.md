@@ -104,7 +104,7 @@ docker compose exec backend python manage.py createsuperuser
 docker compose exec backend pytest
 ```
 
-Los tests cubren el detector (firmas, casos borde, archivos Office, texto UTF-8 y logs) y los endpoints de la API, incluidos validación de extensiones, diagnóstico de desarrollo y CORS. El pipeline exige un **coverage mínimo de 60%** de la aplicación `analizador`; el porcentaje se muestra al ejecutar las pruebas.
+Los tests cubren el detector (firmas, casos borde, archivos Office, texto UTF-8 y logs) y los endpoints de la API, incluidos validación de extensiones, diagnóstico configurable en desarrollo y producción y CORS. El pipeline exige un **coverage mínimo de 60%** de la aplicación `analizador`; el porcentaje se muestra al ejecutar las pruebas.
 
 Los archivos de pruebas están en:
 
@@ -145,9 +145,9 @@ Resultado de deteccion: tipo=PDF mime=application/pdf
 
 No se vuelca el archivo completo ni se registra su nombre. La muestra puede contener parte del contenido, por lo que para el uso habitual en producción se recomienda `INFO`, que no muestra bytes.
 
-El cliente React solicita un diagnóstico mediante `POST /api/archivos/?diagnostico=1`. Solo en desarrollo (`DJANGO_DEBUG=1`), el backend añade a esa respuesta la muestra y los patrones coincidentes; no los guarda en la base de datos ni los incluye en el historial o detalle. React los imprime directamente en la consola del navegador (F12 → Consola) al pulsar Analizar, agrupados por nombre de archivo. La tabla compara posición, longitud, hexadecimal y bits esperados/encontrados. Si no coincide una firma, lo indica sin inventar patrones. Los nombres se pasan como valores de texto, sin generar HTML.
+El cliente React solicita un diagnóstico mediante `POST /api/archivos/?diagnostico=1`. Con `DJANGO_DIAGNOSTICO_ENABLED=1` (valor predeterminado), el backend añade a esa respuesta la muestra y los patrones coincidentes tanto en desarrollo como en producción; no los guarda en la base de datos ni los incluye en el historial o detalle. React los imprime directamente en la consola del navegador (F12 → Consola) al pulsar Analizar, agrupados por nombre de archivo. La tabla compara posición, longitud, hexadecimal y bits esperados/encontrados. Si no coincide una firma, lo indica sin inventar patrones. Los nombres se pasan como valores de texto, sin generar HTML.
 
-En producción (`DJANGO_DEBUG=0`) no se envía este diagnóstico, aunque se solicite. Estos mensajes del navegador son independientes de `DJANGO_LOG_LEVEL`, que controla la consola del backend. Para comprobarlos, abrir http://localhost:5173, habilitar el nivel Información en la consola y analizar un archivo.
+El diagnóstico es independiente de `DJANGO_DEBUG`: en producción se mantiene `DJANGO_DEBUG=0`. Para desactivar los mensajes y excluir el diagnóstico de las respuestas, establecer `DJANGO_DIAGNOSTICO_ENABLED=0` y reiniciar o redesplegar el backend. En Railway se puede fijar `DJANGO_DIAGNOSTICO_ENABLED=1` en las variables del servicio backend. El frontend y el backend deben tener desplegados estos cambios. Estos mensajes del navegador también son independientes de `DJANGO_LOG_LEVEL`, que controla la consola del backend. Para comprobarlos, abrir http://localhost:5173, habilitar el nivel Información en la consola y analizar un archivo.
 
 Con Docker, consultar los logs mediante:
 

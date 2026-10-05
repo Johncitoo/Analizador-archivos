@@ -35,7 +35,7 @@ describe("diagnóstico en la consola del navegador", () => {
     expect(console.groupEnd).toHaveBeenCalledOnce();
   });
 
-  it("no imprime nada si producción omite el diagnóstico", () => {
+  it("no imprime nada si el backend omite el diagnóstico", () => {
     registrarDiagnostico({ nombre: "prueba.pdf", tipo_detectado: "PDF" });
     expect(console.group).not.toHaveBeenCalled();
     expect(console.log).not.toHaveBeenCalled();

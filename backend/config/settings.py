@@ -30,6 +30,9 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-insecure')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', '0') == '1'
 
+# Diagnóstico de firmas para el navegador, independiente del modo DEBUG.
+DJANGO_DIAGNOSTICO_ENABLED = os.environ.get('DJANGO_DIAGNOSTICO_ENABLED', '1') == '1'
+
 # Bits y firmas en desarrollo; en producción, solo el resultado por defecto.
 LOGGING = {
     'version': 1,

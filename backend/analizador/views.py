@@ -41,7 +41,7 @@ class ArchivoAnalizadoViewSet(
             tamano=archivo.size,
         )
         respuesta = dict(ArchivoAnalizadoSerializer(registro).data)
-        if settings.DEBUG and request.query_params.get("diagnostico") == "1":
+        if settings.DJANGO_DIAGNOSTICO_ENABLED and request.query_params.get("diagnostico") == "1":
             respuesta["diagnostico"] = obtener_diagnostico(datos, resultado)
         return Response(respuesta, status=status.HTTP_201_CREATED)
 
