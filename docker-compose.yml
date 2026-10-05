@@ -30,13 +30,17 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend-react
+      target: dev
     environment:
-      API_URL: http://backend:8000/api
+      # El navegador es quien llama a la API, por eso es localhost y no "backend"
+      VITE_API_URL: http://localhost:8000/api
     volumes:
-      - ./frontend:/app
+      - ./frontend-react:/app
+      - /app/node_modules
     ports:
-      - "8501:8501"
+      - "5173:5173"
     depends_on:
       - backend
 

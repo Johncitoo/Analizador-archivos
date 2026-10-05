@@ -114,3 +114,20 @@ def test_str_del_modelo_es_el_nombre():
 def test_swagger_disponible(cliente):
     assert cliente.get("/api/docs/").status_code == 200
     assert cliente.get("/api/schema/").status_code == 200
+
+
+@pytest.mark.django_db
+class TestCors:
+    """El frontend (otro dominio) llama a la API desde el navegador."""
+
+    def test_permite_origen_del_frontend(self, cliente, settings):
+        settings.CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
+        respuesta = cliente.get(URL_ARCHIVOS, HTTP_ORIGIN="http://localhost:5173")
+
+        assert respuesta["Access-Control-Allow-Origin"] == "http://localhost:5173"
+
+    def test_rechaza_origen_desconocido(self, cliente, settings):
+        settings.CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
+        respuesta = cliente.get(URL_ARCHIVOS, HTTP_ORIGIN="http://sitio-malicioso.com")
+
+        assert "Access-Control-Allow-Origin" not in respuesta

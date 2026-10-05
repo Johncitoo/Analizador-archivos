@@ -8,3 +8,5 @@ venv/
 htmlcov/
 .pytest_cache/
 staticfiles/
+node_modules/
+dist/

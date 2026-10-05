@@ -15,14 +15,14 @@ Monolito: todo el backend es una sola aplicación Django desplegable. El fronten
 
 ```mermaid
 flowchart LR
-    U[Usuario] --> F[Frontend<br/>Streamlit]
+    U[Usuario] --> F[Frontend<br/>React]
     F -- REST / JSON --> B[Backend<br/>Django + DRF]
     B --> D[(PostgreSQL)]
 ```
 
 | Capa | Tecnología | Responsabilidad |
 |---|---|---|
-| Frontend | Python, Streamlit | Subir archivos y mostrar resultados, tablas y gráficos |
+| Frontend | React (Vite), servido con nginx | Subir archivos y mostrar resultados, tablas y gráficos. El navegador llama directamente a la API |
 | Backend | Python, Django, Django REST Framework | Detección del tipo, reglas de negocio y API REST |
 | Base de datos | PostgreSQL | Persistencia de los análisis |
 | Infraestructura | Docker, Docker Compose | Un contenedor por servicio |
@@ -86,7 +86,7 @@ docker compose exec backend python manage.py migrate
 
 | Servicio | URL |
 |---|---|
-| Frontend | http://localhost:8501 |
+| Frontend | http://localhost:5173 |
 | API | http://localhost:8000/api/archivos/ |
 | Swagger | http://localhost:8000/api/docs/ |
 
@@ -106,7 +106,7 @@ Los tests cubren el detector (firmas, casos borde, archivos Office, texto) y tod
 
 ## CI/CD
 
-- **Integración continua:** en cada push a `main`, GitHub Actions (`.github/workflows/ci.yml`) levanta un PostgreSQL temporal, verifica la configuración y las migraciones, corre los tests con coverage y construye las imágenes Docker del backend y del frontend.
+- **Integración continua:** en cada push a `main`, GitHub Actions (`.github/workflows/ci.yml`) levanta un PostgreSQL temporal, verifica la configuración y las migraciones, corre los tests con coverage, compila el frontend y construye las imágenes Docker del backend y del frontend.
 - **Despliegue continuo:** Railway está conectado al repositorio y despliega automáticamente cada cambio en `main` solo si el pipeline de GitHub Actions termina con éxito. Al arrancar, el backend aplica las migraciones pendientes.
 
 ## Estructura del proyecto
@@ -125,11 +125,13 @@ Los tests cubren el detector (firmas, casos borde, archivos Office, texto) y tod
 │   │   └── tests/           Tests del detector y de la API
 │   ├── Dockerfile
 │   └── requirements.txt
-├── frontend/
-│   ├── app.py               Pantallas (Analizar, Estadísticas, Historial)
-│   ├── api.py               Cliente HTTP de la API
-│   ├── Dockerfile
-│   └── requirements.txt
+├── frontend-react/
+│   ├── src/
+│   │   ├── App.jsx          Pestañas (Analizar, Estadísticas, Historial)
+│   │   ├── api.js           Cliente HTTP de la API (fetch)
+│   │   └── components/      Pantallas y tabla de archivos
+│   ├── Dockerfile           Desarrollo (Vite) y producción (nginx)
+│   └── package.json
 ├── .github/workflows/ci.yml Pipeline de GitHub Actions
 └── docker-compose.yml       Entorno local: db, backend y frontend
 ```
