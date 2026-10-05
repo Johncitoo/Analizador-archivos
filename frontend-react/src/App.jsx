@@ -33,7 +33,6 @@ export default function App() {
         ))}
       </nav>
 
-      {/* key fuerza a recargar los datos cada vez que se entra a la pestaña */}
       <Pestana key={activa} />
     </main>
   );

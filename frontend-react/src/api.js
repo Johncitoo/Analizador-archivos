@@ -1,6 +1,3 @@
-// Cliente de la API REST del backend. Todas las llamadas HTTP pasan por aquí,
-// así que son visibles en la pestaña Network del navegador.
-
 const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000/api").replace(/\/$/, "");
 
 async function pedir(ruta, opciones) {
@@ -21,7 +18,6 @@ async function pedir(ruta, opciones) {
 function mensajeDeError(datos) {
   if (!datos) return null;
   if (datos.detail) return datos.detail;
-  // Errores de validación de DRF: { "archivo": ["mensaje"] }
   return Object.values(datos).flat().join(" ");
 }
 

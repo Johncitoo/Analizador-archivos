@@ -15,8 +15,6 @@ class ArchivoAnalizadoViewSet(
     mixins.RetrieveModelMixin,
     viewsets.GenericViewSet,
 ):
-    """Listar, ver el detalle, subir archivos y obtener estadísticas."""
-
     queryset = ArchivoAnalizado.objects.order_by("-fecha")
     serializer_class = ArchivoAnalizadoSerializer
     parser_classes = [MultiPartParser]
@@ -31,7 +29,6 @@ class ArchivoAnalizadoViewSet(
         subida.is_valid(raise_exception=True)
         archivo = subida.validated_data["archivo"]
 
-        # Solo se guarda el resultado del análisis, no el archivo en sí
         datos = archivo.read()
         resultado = detectar_tipo(datos)
 
@@ -49,7 +46,6 @@ class ArchivoAnalizadoViewSet(
     def estadisticas(self, request):
         archivos = ArchivoAnalizado.objects.all()
         totales = archivos.aggregate(total=Count("id"), tamano_total=Sum("tamano"))
-        # GROUP BY tipo_detectado
         por_tipo = (
             archivos.values("tipo_detectado")
             .annotate(cantidad=Count("id"), tamano_total=Sum("tamano"))

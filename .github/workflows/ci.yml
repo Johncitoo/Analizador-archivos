@@ -10,7 +10,6 @@ jobs:
     name: Tests del backend
     runs-on: ubuntu-latest
 
-    # Base de datos PostgreSQL temporal, solo para correr los tests
     services:
       postgres:
         image: postgres:17

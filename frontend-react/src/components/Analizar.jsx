@@ -3,7 +3,7 @@ import { useState } from "react";
 import { subirArchivo } from "../api.js";
 import TablaArchivos from "./TablaArchivos.jsx";
 
-const TAMANO_MAXIMO = 20 * 1024 * 1024; // 20 MB, igual que el backend
+const TAMANO_MAXIMO = 20 * 1024 * 1024; // 20 MB
 
 export default function Analizar() {
   const [archivos, setArchivos] = useState([]);

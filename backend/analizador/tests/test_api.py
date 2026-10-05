@@ -118,8 +118,6 @@ def test_swagger_disponible(cliente):
 
 @pytest.mark.django_db
 class TestCors:
-    """El frontend (otro dominio) llama a la API desde el navegador."""
-
     def test_permite_origen_del_frontend(self, cliente, settings):
         settings.CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
         respuesta = cliente.get(URL_ARCHIVOS, HTTP_ORIGIN="http://localhost:5173")

@@ -6,8 +6,6 @@ TAMANO_MAXIMO = 20 * 1024 * 1024  # 20 MB
 
 
 class ArchivoAnalizadoSerializer(serializers.ModelSerializer):
-    """Salida: convierte un registro de la base de datos en JSON."""
-
     class Meta:
         model = ArchivoAnalizado
         fields = ["id", "nombre", "extension", "tipo_detectado", "mime", "tamano", "fecha"]
@@ -15,8 +13,6 @@ class ArchivoAnalizadoSerializer(serializers.ModelSerializer):
 
 
 class SubidaArchivoSerializer(serializers.Serializer):
-    """Entrada: valida el archivo que sube el usuario."""
-
     archivo = serializers.FileField()
 
     def validate_archivo(self, archivo):

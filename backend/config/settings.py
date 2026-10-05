@@ -18,7 +18,6 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# El .env está en la raíz del repositorio (un nivel sobre backend/)
 load_dotenv(BASE_DIR.parent / '.env')
 
 
@@ -33,11 +32,9 @@ DEBUG = os.environ.get('DJANGO_DEBUG', '0') == '1'
 
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost').split(',')
 
-# Orígenes https permitidos para formularios (admin) detrás del proxy de Railway
 CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o]
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Orígenes (frontend) que pueden llamar a la API desde el navegador
 CORS_ALLOWED_ORIGINS = [o for o in os.environ.get('DJANGO_CORS_ALLOWED_ORIGINS', '').split(',') if o]
 
 
@@ -138,9 +135,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'  # collectstatic junta aquí los archivos; WhiteNoise los sirve
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Archivos subidos por el usuario
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -149,7 +145,6 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# API REST y documentación Swagger (OpenAPI)
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }

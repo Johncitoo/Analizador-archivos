@@ -44,7 +44,6 @@ def test_detecta_por_firma(datos, tipo, mime):
 
 
 def test_ignora_la_extension_y_mira_el_contenido():
-    # Un PNG sigue siendo PNG aunque el usuario lo haya renombrado
     contenido_png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 20
     assert detectar_tipo(contenido_png).tipo == "PNG"
 
@@ -98,7 +97,6 @@ def test_bytes_invalidos_sin_nulos_no_son_texto():
 
 
 def test_bytes_cabecera_alcanza_para_todas_las_firmas():
-    # TAR tiene la firma más lejana: posición 257 + 5 bytes
     assert BYTES_CABECERA == 262
 
 

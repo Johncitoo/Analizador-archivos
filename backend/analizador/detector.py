@@ -34,8 +34,6 @@ def _firma(tipo: str, mime: str, *patrones: tuple[int, bytes]) -> Firma:
     return Firma(patrones=patrones, tipo=tipo, mime=mime)
 
 
-# El orden importa: las firmas más específicas van primero
-# (por ejemplo, WEBP y WAV comparten el prefijo "RIFF").
 FIRMAS: tuple[Firma, ...] = (
     # Documentos
     _firma("PDF", "application/pdf", (0, b"%PDF")),
@@ -72,20 +70,16 @@ FIRMAS: tuple[Firma, ...] = (
     _firma("SQLite", "application/vnd.sqlite3", (0, b"SQLite format 3\x00")),
 )
 
-# Los formatos de Office modernos (docx, xlsx, pptx) son archivos ZIP por dentro;
-# se distinguen por la carpeta interna que contienen.
 _OFFICE_POR_CARPETA = (
     ("word/", Resultado("DOCX", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")),
     ("xl/", Resultado("XLSX", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")),
     ("ppt/", Resultado("PPTX", "application/vnd.openxmlformats-officedocument.presentationml.presentation")),
 )
 
-# Cuantos bytes del inicio hacen falta para revisar todas las firmas.
 BYTES_CABECERA = max(off + len(esp) for f in FIRMAS for off, esp in f.patrones)
 
 
 def detectar_tipo(datos: bytes) -> Resultado:
-    """Devuelve el tipo de archivo según su contenido."""
     if not datos:
         return Resultado("Vacío", "application/x-empty")
 
@@ -102,7 +96,6 @@ def detectar_tipo(datos: bytes) -> Resultado:
 
 
 def _refinar_zip(datos: bytes) -> Resultado:
-    """Distingue DOCX/XLSX/PPTX de un ZIP común mirando sus carpetas internas."""
     try:
         with zipfile.ZipFile(io.BytesIO(datos)) as zf:
             nombres = zf.namelist()
@@ -116,18 +109,15 @@ def _refinar_zip(datos: bytes) -> Resultado:
 
 
 def _es_texto(datos: bytes, muestra: int = 8192) -> bool:
-    """Un archivo es texto si no tiene bytes nulos y se puede leer como UTF-8."""
     fragmento = datos[:muestra]
     if b"\x00" in fragmento:
         return False
     try:
         fragmento.decode("utf-8")
     except UnicodeDecodeError as error:
-        # Si el corte de la muestra partió un carácter multibyte al final, sigue siendo texto
         return error.start >= len(fragmento) - 3
     return True
 
 
 def obtener_extension(nombre: str) -> str:
-    """'Foto.JPG' -> 'jpg'. Devuelve '' si el nombre no tiene extensión."""
     return PurePath(nombre).suffix.lstrip(".").lower()
